@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>القرآن الكريم | موسوعتك الدينية</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .quran-choice-btn {
+      padding: 1.8rem;
+      text-align: center;
+      cursor: pointer;
+      border-radius: 22px;
+      border: 1px solid var(--glass-border);
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+      transition: all 0.3s ease;
+    }
+    .quran-choice-btn:hover,
+    .quran-choice-btn:focus {
+      transform: translateY(-6px);
+      border-color: var(--accent-gold);
+      background: rgba(234, 179, 8, 0.16);
+    }
+    .quran-choice-btn img {
+      width: 110px;
+      height: 110px;
+      object-fit: cover;
+      border-radius: 18px;
+      margin-bottom: 1rem;
+    }
+    .surah-box {
+      padding: 1.5rem;
+      margin-bottom: 1.2rem;
+    }
+  </style>
+</head>
+<body>
+  <header class="liquid-glass top-navbar">
+    <div class="brand-title" data-speak="قسم القرآن الكريم"> القرآن الكريم</div>
+    <div style="display: flex; gap: 0.6rem;">
+      <button id="back-to-hub" class="btn-glass hidden" data-speak="العودة لاختيار القراءة أو الاستماع">↩️ اختيار القسم</button>
+      <a href="home.html" class="btn-glass" data-speak="العودة إلى الصفحة الرئيسية"> الرئيسية</a>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- البطاقة الرئيسية بأسلوب Liquid Glass بزرين وصور -->
+    <section id="quran-hub" class="liquid-glass" style="padding: 2.2rem; text-align: center;">
+      <h1 style="color: var(--accent-gold); font-size: 2rem;">القرآن الكريم</h1>
+      <p style="color: var(--text-muted); margin-top: 0.4rem;">اختر القسم الذي يناسبك الآن</p>
+
+      <div class="choice-grid">
+        <button id="btn-quran-read" class="quran-choice-btn"
+                data-speak="القرآن للقراءة. عرض السور النصية والبطاقات">
+          <img src="https://cdn-icons-png.flaticon.com/512/2232/2232688.png" alt="صورة القرآن للقراءة" />
+          <h2 style="font-size: 1.4rem; color: var(--accent-gold);">القرآن للقراءة</h2>
+          <p style="color: var(--text-muted); margin-top: 0.4rem;">تصفح وقراءة السور بنص واضح ومريح</p>
+        </button>
+
+        <button id="btn-quran-listen" class="quran-choice-btn"
+                data-speak="القرآن للاستماع. الاستماع إلى التلاوات الصوتية">
+          <img src="https://cdn-icons-png.flaticon.com/512/727/727245.png" alt="صورة القرآن للاستماع" />
+          <h2 style="font-size: 1.4rem; color: var(--accent-emerald);">القرآن للاستماع</h2>
+          <p style="color: var(--text-muted); margin-top: 0.4rem;">استمع إلى تلاوات قرآنية خاشعة وواضحة</p>
+        </button>
+      </div>
+    </section>
+
+    <!-- صفحة القرآن للقراءة (سورتين نص كتجربة + المرفوع من المالك) -->
+    <section id="read-view" class="hidden">
+      <div class="liquid-glass" style="padding: 1.5rem; margin-bottom: 1.5rem;" tabindex="0"
+           data-speak="قسم القرآن للقراءة. يحتوي على سورتين كتجربة">
+        <h2 style="color: var(--accent-gold);">📖 القرآن للقراءة</h2>
+      </div>
+      <div id="read-items-container"></div>
+    </section>
+
+    <!-- صفحة القرآن للاستماع (سورتين استماع كتجربة + المرفوع من المالك) -->
+    <section id="listen-view" class="hidden">
+      <div class="liquid-glass" style="padding: 1.5rem; margin-bottom: 1.5rem;" tabindex="0"
+           data-speak="قسم القرآن للاستماع. يحتوي على سورتين صوتيتين كتجربة">
+        <h2 style="color: var(--accent-emerald);">🎧 القرآن للاستماع</h2>
+      </div>
+      <div id="listen-items-container"></div>
+    </section>
+  </main>
+
+  <script src="js/voice-engine.js"></script>
+  <script type="module">
+    import { auth, db } from "./js/firebase-config.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    // سورتان نص كتجربة (مقتطفات تعريفية مختصرة)
+    const SAMPLE_READ_SURAHS = [
+      {
+        surahName: "سورة الفاتحة (نموذج تجريبي للقراءة)",
+        contentOrUrl: "فاتحة الكتاب وأم القرآن، تتضمن الثناء على الله تعالى، وإفراده بالعبادة والاستعانة، وسؤال الهداية إلى الصراط المستقيم. يمكن للمالك إضافة أي سورة أو نص كامل من لوحة التحكم."
+      },
+      {
+        surahName: "سورة الإخلاص (نموذج تجريبي للقراءة)",
+        contentOrUrl: "سورة مكية عظيمة تعدل ثلث القرآن في المعنى، وتقرر وحدانية الله المطلقة وتنزهه عن الشبيه والنظير. يمكن للمالك رفع نصوص أو صور سور إضافية من لوحة التحكم."
+      }
+    ];
+
+    // سورتان صوت كتجربة (روابط تلاوات عامة نموذجية)
+    const SAMPLE_LISTEN_SURAHS = [
+      {
+        surahName: "سورة الفاتحة — تلاوة تجريبية",
+        contentOrUrl: "https://server8.mp3quran.net/afs/001.mp3"
+      },
+      {
+        surahName: "سورة الإخلاص — تلاوة تجريبية",
+        contentOrUrl: "https://server8.mp3quran.net/afs/112.mp3"
+      }
+    ];
+
+    const hub = document.getElementById('quran-hub');
+    const readView = document.getElementById('read-view');
+    const listenView = document.getElementById('listen-view');
+    const backBtn = document.getElementById('back-to-hub');
+
+    let customRead = [];
+    let customListen = [];
+
+    function renderReadSection() {
+      const container = document.getElementById('read-items-container');
+      const all = [...customRead, ...SAMPLE_READ_SURAHS];
+      container.innerHTML = all.map(item => `
+        <article class="liquid-glass surah-box" tabindex="0" data-speak="${item.surahName}. ${item.contentOrUrl}">
+          <h3 style="color: var(--accent-gold); font-size: 1.35rem; margin-bottom: 0.6rem;">${item.surahName}</h3>
+          <p style="font-size: 1.2rem; line-height: 2;">${item.contentOrUrl}</p>
+        </article>
+      `).join('');
+      window.voiceEngine.bindAutoReadElements();
+    }
+
+    function renderListenSection() {
+      const container = document.getElementById('listen-items-container');
+      const all = [...customListen, ...SAMPLE_LISTEN_SURAHS];
+      container.innerHTML = all.map(item => `
+        <article class="liquid-glass surah-box" tabindex="0" data-speak="تلاوة ${item.surahName}">
+          <h3 style="color: var(--accent-emerald); font-size: 1.35rem; margin-bottom: 0.8rem;">${item.surahName}</h3>
+          <audio controls preload="none" style="width: 100%; border-radius: 12px;">
+            <source src="${item.contentOrUrl}" type="audio/mpeg" />
+            متصفحك لا يدعم مشغل الصوت.
+          </audio>
+        </article>
+      `).join('');
+      window.voiceEngine.bindAutoReadElements();
+    }
+
+    document.getElementById('btn-quran-read').addEventListener('click', () => {
+      hub.classList.add('hidden');
+      listenView.classList.add('hidden');
+      readView.classList.remove('hidden');
+      backBtn.classList.remove('hidden');
+      renderReadSection();
+      window.voiceEngine.speak('تم فتح القرآن للقراءة');
+    });
+
+    document.getElementById('btn-quran-listen').addEventListener('click', () => {
+      hub.classList.add('hidden');
+      readView.classList.add('hidden');
+      listenView.classList.remove('hidden');
+      backBtn.classList.remove('hidden');
+      renderListenSection();
+      window.voiceEngine.speak('تم فتح القرآن للاستماع');
+    });
+
+    backBtn.addEventListener('click', () => {
+      readView.classList.add('hidden');
+      listenView.classList.add('hidden');
+      backBtn.classList.add('hidden');
+      hub.classList.remove('hidden');
+      window.voiceEngine.speak('العودة إلى اختيارات القرآن الكريم');
+    });
+
+    onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
+      }
+      window.voiceEngine.speak('أهلاً بك في قسم القرآن الكريم. اختر القرآن للقراءة أو القرآن للاستماع.');
+
+      onSnapshot(collection(db, "quran_items"), (snap) => {
+        const docs = snap.docs.map(d => d.data());
+        customRead = docs.filter(d => d.type === 'read');
+        customListen = docs.filter(d => d.type === 'listen');
+        if (!readView.classList.contains('hidden')) renderReadSection();
+        if (!listenView.classList.contains('hidden')) renderListenSection();
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>الرئيسية | مواقيت الصلاة - القاهرة</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- الشريط العلوي -->
+  <header class="liquid-glass top-navbar">
+    <div class="brand-title" data-speak="موسوعتك الدينية لذوي الهمم">
+      🕌 موسوعتك الدينية
+    </div>
+
+    <!-- زر الثلاث شرطات في أقصى اليسار -->
+    <button id="menu-toggle" class="hamburger-btn" aria-label="فتح القائمة الرئيسية"
+            data-speak="فتح قائمة الأقسام الرئيسية">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+  </header>
+
+  <!-- القائمة الجانبية بأسلوب Liquid Glass -->
+  <div id="drawer-overlay" class="drawer-overlay"></div>
+  <nav id="glass-drawer" class="glass-drawer" aria-label="القائمة الرئيسية">
+    <h2 style="color: var(--accent-gold); margin-bottom: 0.5rem;">أقسام الموسوعة</h2>
+    <a href="home.html" class="drawer-link" data-speak="مواقيت الصلاة">🕌 مواقيت الصلاة</a>
+    <a href="adhkar.html" class="drawer-link" data-speak="قسم الأذكار والأدعية">📿 الأذكار والأدعية</a>
+    <a href="quran.html" class="drawer-link" data-speak="قسم القرآن الكريم"> القرآن الكريم</a>
+    <a href="qibla.html" class="drawer-link" data-speak="بوصلة اتجاه القبلة">🧭 بوصلة القبلة</a>
+    <a href="support.html" class="drawer-link" data-speak="قسم الدعم وتقديم الشكاوى">🎧 الدعم والشكاوى</a>
+
+    <!-- روابط الداشبورد (تظهر فقط للمالك أو الأدمن من Firestore) -->
+    <a href="admin.html" id="owner-nav-link" class="drawer-link hidden" style="border-color: var(--accent-gold); color: var(--accent-gold);"
+       data-speak="لوحة تحكم المالك"> لوحة تحكم المالك</a>
+    <a href="admin.html" id="admin-nav-link" class="drawer-link hidden" style="border-color: var(--accent-emerald); color: var(--accent-emerald);"
+       data-speak="لوحة تحكم المشرف"> لوحة تحكم الأدمن</a>
+
+    <button id="logout-btn" class="btn-glass" style="margin-top: auto; background: rgba(220,38,38,0.25);"
+            data-speak="تسجيل الخروج">
+      🚪 تسجيل الخروج
+    </button>
+  </nav>
+
+  <!-- محتوى الصفحة الرئيسية -->
+  <main class="container">
+    <!-- بانر الصلاة القادمة + العداد -->
+    <section id="next-prayer-banner" class="liquid-glass next-prayer-banner" tabindex="0">
+      <p id="hijri-date" style="color: var(--text-muted); font-weight: 600;">جاري تحديد التاريخ ومواقيت القاهرة...</p>
+      <h1 id="next-prayer-title" class="next-prayer-name">الصلاة القادمة</h1>
+      <div id="countdown-timer" class="countdown-box">--:--:--</div>
+    </section>
+
+    <!-- بطاقات الصلوات اليومية في القاهرة -->
+    <section aria-label="مواقيت الصلاة اليومية في القاهرة">
+      <div id="prayers-grid" class="prayers-grid"></div>
+    </section>
+  </main>
+
+  <script src="js/voice-engine.js"></script>
+  <script type="module">
+    import { auth, db, OWNER_EMAIL } from "./js/firebase-config.js";
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { initCairoPrayerTimes } from "./js/prayer-times.js";
+
+    // تشغيل النطق الترحيبي فور فتح الصفحة الرئيسية
+    window.addEventListener('DOMContentLoaded', () => {
+      window.voiceEngine.speak('مرحباً بك في موسوعتك الدينية، حافظ على صلاتك.');
+      window.voiceEngine.bindAutoReadElements();
+      initCairoPrayerTimes();
+    });
+
+    // التحكم في القائمة الجانبية (الـ 3 شرطات أقصى اليسار)
+    const menuBtn = document.getElementById('menu-toggle');
+    const drawer = document.getElementById('glass-drawer');
+    const overlay = document.getElementById('drawer-overlay');
+
+    function toggleDrawer(open) {
+      drawer.classList.toggle('open', open);
+      overlay.classList.toggle('show', open);
+      if (open) window.voiceEngine.speak('تم فتح القائمة الرئيسية للأقسام');
+    }
+
+    menuBtn.addEventListener('click', () => toggleDrawer(true));
+    overlay.addEventListener('click', () => toggleDrawer(false));
+
+    // التحقق اللحظي (Real-time) من الصلاحيات (المالك / الأدمن / المستخدم)
+    onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      const ownerLink = document.getElementById('owner-nav-link');
+      const adminLink = document.getElementById('admin-nav-link');
+
+      // الاستماع الفوري لتغيير الصلاحية في Firestore (لو المالك شال الأدمن تختفي فوراً)
+      onSnapshot(doc(db, "users", user.uid), (snap) => {
+        const data = snap.data() || {};
+        if (user.email === OWNER_EMAIL || data.role === 'owner') {
+          ownerLink.classList.remove('hidden');
+          adminLink.classList.add('hidden');
+        } else if (data.role === 'admin') {
+          adminLink.classList.remove('hidden');
+          ownerLink.classList.add('hidden');
+        } else {
+          ownerLink.classList.add('hidden');
+          adminLink.classList.add('hidden');
+        }
+      });
+    });
+
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      await signOut(auth);
+      window.location.href = 'index.html';
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>لوحة التحكم | موسوعتك الدينية</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .tabs-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.7rem;
+      margin-bottom: 1.5rem;
+    }
+    .field-input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border-radius: 12px;
+      border: 1px solid var(--glass-border);
+      background: rgba(0, 0, 0, 0.3);
+      color: #fff;
+      font-size: 1rem;
+      margin-top: 0.4rem;
+      margin-bottom: 0.9rem;
+    }
+    .ticket-card {
+      padding: 1.2rem;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <header class="liquid-glass top-navbar">
+    <div id="panel-title" class="brand-title"> لوحة التحكم</div>
+    <a href="home.html" class="btn-glass"> الرئيسية</a>
+  </header>
+
+  <main class="container">
+    <!-- ==================== داشبورد المالك (4 أقسام) ==================== -->
+    <section id="owner-panel" class="hidden">
+      <div class="tabs-row">
+        <button class="btn-glass owner-tab" data-tab="tab-users">1. المستخدمون</button>
+        <button class="btn-glass owner-tab" data-tab="tab-adhkar">2. الأذكار</button>
+        <button class="btn-glass owner-tab" data-tab="tab-quran">3. القرآن</button>
+        <button class="btn-glass owner-tab" data-tab="tab-owner-tickets">4. الشكاوى</button>
+      </div>
+
+      <!-- القسم 1: المستخدمون وتحديد الأدوار -->
+      <div id="tab-users" class="liquid-glass owner-section" style="padding: 1.5rem;">
+        <h2 style="color: var(--accent-gold); margin-bottom: 1rem;">إدارة المستخدمين والصلاحيات</h2>
+        <div id="users-list"></div>
+      </div>
+
+      <!-- القسم 2: إضافة ونشر الأذكار -->
+      <div id="tab-adhkar" class="liquid-glass owner-section hidden" style="padding: 1.5rem;">
+        <h2 style="color: var(--accent-gold); margin-bottom: 1rem;">إضافة ذكر أو دعاء جديد</h2>
+        <label>نوع الذكر</label>
+        <input id="dhikr-category" class="field-input" placeholder="مثال: أذكار الصباح، أذكار المساء، أدعية" />
+        <label>عنوان الذكر</label>
+        <input id="dhikr-title" class="field-input" placeholder="مثال: سيد الاستغفار" />
+        <label>تفاصيل / نص الذكر</label>
+        <textarea id="dhikr-content" rows="3" class="field-input" placeholder="اكتب نص الذكر كاملاً..."></textarea>
+        <label>عدد مرات التكرار أو الإرشاد</label>
+        <input id="dhikr-count" class="field-input" placeholder="مثال: 3 مرات" />
+        <button id="publish-dhikr-btn" class="btn-glass"> نشر الذكر للمستخدمين</button>
+      </div>
+
+      <!-- القسم 3: رفع محتوى القرآن -->
+      <div id="tab-quran" class="liquid-glass owner-section hidden" style="padding: 1.5rem;">
+        <h2 style="color: var(--accent-gold); margin-bottom: 1rem;">رفع محتوى القرآن الكريم</h2>
+        <label>القسم المستهدف</label>
+        <select id="quran-type" class="field-input">
+          <option value="read">القرآن للقراءة (نص أو رابط صورة)</option>
+          <option value="listen">القرآن للاستماع (رابط ملف صوتي MP3)</option>
+        </select>
+        <label>اسم السورة / العنوان</label>
+        <input id="quran-surah" class="field-input" placeholder="مثال: سورة الملك" />
+        <label>النص القرآني أو رابط الصورة / الصوت</label>
+        <textarea id="quran-payload" rows="3" class="field-input" placeholder="ضع النص أو الرابط هنا..."></textarea>
+        <button id="publish-quran-btn" class="btn-glass"> حفظ ونشر في قسم القرآن</button>
+      </div>
+
+      <!-- القسم 4: الشكاوى للمالك -->
+      <div id="tab-owner-tickets" class="liquid-glass owner-section hidden" style="padding: 1.5rem;">
+        <h2 style="color: var(--accent-gold); margin-bottom: 1rem;">جميع شكاوى المستخدمين</h2>
+        <div id="owner-tickets-list"></div>
+      </div>
+    </section>
+
+    <!-- ==================== داشبورد الأدمن (الشكاوى فقط بتصنيفاتها) ==================== -->
+    <section id="admin-panel" class="hidden">
+      <div class="liquid-glass" style="padding: 1.5rem; margin-bottom: 1.5rem;">
+        <h1 style="color: var(--accent-emerald); font-size: 1.7rem;">لوحة إدارة الشكاوى</h1>
+        <p style="color: var(--text-muted);">مرتبة حسب: لم يتم التعامل معها، مستلمة من إداري آخر، وتم حلها</p>
+      </div>
+
+      <div class="liquid-glass" style="padding: 1.5rem; margin-bottom: 1.5rem;">
+        <h2 style="color: var(--accent-gold); margin-bottom: 1rem;">⏳ لم يتم التعامل معها</h2>
+        <div id="tickets-unassigned"></div>
+      </div>
+
+      <div class="liquid-glass" style="padding: 1.5rem; margin-bottom: 1.5rem;">
+        <h2 style="color: #38bdf8; margin-bottom: 1rem;">👤 مستلمة من إداري آخر</h2>
+        <div id="tickets-other-admin"></div>
+      </div>
+
+      <div class="liquid-glass" style="padding: 1.5rem;">
+        <h2 style="color: var(--accent-emerald); margin-bottom: 1rem;"> تم حلها</h2>
+        <div id="tickets-resolved"></div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { auth, db, OWNER_EMAIL } from "./js/firebase-config.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { collection, onSnapshot, doc, updateDoc, addDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const ownerPanel = document.getElementById('owner-panel');
+    const adminPanel = document.getElementById('admin-panel');
+    const panelTitle = document.getElementById('panel-title');
+    let currentUser = null;
+    let unsubUsers = null;
+    let unsubTickets = null;
+
+    // التنقل بين أقسام المالك الأربعة
+    document.querySelectorAll('.owner-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.owner-section').forEach(sec => sec.classList.add('hidden'));
+        document.getElementById(btn.dataset.tab).classList.remove('hidden');
+      });
+    });
+
+    // نشر ذكر جديد
+    document.getElementById('publish-dhikr-btn').addEventListener('click', async () => {
+      const category = document.getElementById('dhikr-category').value.trim();
+      const title = document.getElementById('dhikr-title').value.trim();
+      const content = document.getElementById('dhikr-content').value.trim();
+      const count = document.getElementById('dhikr-count').value.trim();
+      if (!title || !content) return alert('يرجى إدخال عنوان الذكر ونصه.');
+
+      await addDoc(collection(db, "adhkar"), {
+        category: category || "أذكار وأدعية",
+        title,
+        content,
+        count: count || "حسب التيسير",
+        createdAt: new Date().toISOString()
+      });
+      alert('تم نشر الذكر بنجاح!');
+    });
+
+    // رفع محتوى القرآن
+    document.getElementById('publish-quran-btn').addEventListener('click', async () => {
+      const type = document.getElementById('quran-type').value;
+      const surahName = document.getElementById('quran-surah').value.trim();
+      const contentOrUrl = document.getElementById('quran-payload').value.trim();
+      if (!surahName || !contentOrUrl) return alert('يرجى إدخال اسم السورة والمحتوى أو الرابط.');
+
+      await addDoc(collection(db, "quran_items"), {
+        type,
+        surahName,
+        contentOrUrl,
+        createdAt: new Date().toISOString()
+      });
+      alert('تمت إضافة المحتوى القرآني بنجاح!');
+    });
+
+    function loadUsersForOwner() {
+      if (unsubUsers) unsubUsers();
+      unsubUsers = onSnapshot(collection(db, "users"), (snap) => {
+        const container = document.getElementById('users-list');
+        container.innerHTML = snap.docs.map(d => {
+          const u = d.data();
+          const role = u.email === OWNER_EMAIL ? 'owner' : (u.role || 'user');
+          const disabilityAr = u.disabilityType === 'blind' ? 'إعاقة بصرية' : (u.disabilityType === 'deaf' ? 'إعاقة سمعية' : 'غير محدد');
+          return `
+            <div class="liquid-glass" style="padding: 1rem; margin-bottom: 0.8rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.8rem;">
+              <div>
+                <strong>${u.name || 'مستخدم'}</strong> — <span style="color: var(--text-muted);">${u.email}</span>
+                <div style="font-size: 0.9rem; color: var(--accent-gold);">الحالة: ${disabilityAr} | الدور الحالي: ${role}</div>
+              </div>
+              ${role !== 'owner' ? `
+                <select onchange="window.changeUserRole('${d.id}', this.value)" class="field-input" style="width: auto; margin: 0;">
+                  <option value="user" ${role === 'user' ? 'selected' : ''}>مستخدم عادي</option>
+                  <option value="admin" ${role === 'admin' ? 'selected' : ''}>أدمن (إدارة الشكاوى)</option>
+                </select>
+              ` : '<span style="color: var(--accent-gold); font-weight: 900;">👑 المالك</span>'}
+            </div>
+          `;
+        }).join('');
+      });
+    }
+
+    window.changeUserRole = async (uid, newRole) => {
+      await updateDoc(doc(db, "users", uid), { role: newRole });
+      alert('تم تحديث صلاحية المستخدم فوراً.');
+    };
+
+    function renderTicketCard(id, t, mode) {
+      const stateAr = t.disabilityType === 'blind' ? 'إعاقة بصرية' : (t.disabilityType === 'deaf' ? 'إعاقة سمعية' : 'غير محدد');
+      return `
+        <article class="liquid-glass ticket-card">
+          <p><strong>المستخدم:</strong> ${t.userName} (${t.userEmail}) — <strong>حالته:</strong> <span style="color: var(--accent-gold);">${stateAr}</span></p>
+          <p style="margin-top: 0.4rem;"><strong>نوع الشكوى:</strong> ${t.submissionType === 'voice' ? 'فويس صوتي' : 'كتابة'}</p>
+          <p style="margin-top: 0.5rem;">${t.textContent}</p>
+          ${t.audioDataUrl ? `<audio controls src="${t.audioDataUrl}" style="width: 100%; margin-top: 0.6rem;"></audio>` : ''}
+          ${t.claimedByName ? `<p style="font-size: 0.9rem; color: #38bdf8; margin-top: 0.4rem;">مستلمة بواسطة: ${t.claimedByName}</p>` : ''}
+
+          <textarea id="reply-${id}" rows="2" class="field-input" placeholder="اكتب الرد على المستخدم...">${t.reply || ''}</textarea>
+          <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
+            ${mode === 'unassigned' ? `<button class="btn-glass" onclick="window.claimTicket('${id}')">✋ استلام الشكوى</button>` : ''}
+            <button class="btn-glass" onclick="window.saveTicketReply('${id}', '${t.status}')">💬 حفظ الرد</button>
+            <button class="btn-glass" onclick="window.resolveTicket('${id}')">✅ تم حلها</button>
+          </div>
+        </article>
+      `;
+    }
+
+    window.claimTicket = async (id) => {
+      await updateDoc(doc(db, "tickets", id), {
+        status: "claimed",
+        claimedByUid: currentUser.uid,
+        claimedByName: currentUser.displayName
+      });
+    };
+
+    window.saveTicketReply = async (id, currentStatus) => {
+      const reply = document.getElementById(`reply-${id}`).value;
+      await updateDoc(doc(db, "tickets", id), { reply, status: currentStatus });
+      alert('تم حفظ الرد.');
+    };
+
+    window.resolveTicket = async (id) => {
+      const reply = document.getElementById(`reply-${id}`).value;
+      await updateDoc(doc(db, "tickets", id), { reply, status: "resolved" });
+      alert('تم تعليم الشكوى كـ «تم حلها».');
+    };
+
+    function loadTickets(isOwner) {
+      if (unsubTickets) unsubTickets();
+      unsubTickets = onSnapshot(collection(db, "tickets"), (snap) => {
+        const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        if (isOwner) {
+          document.getElementById('owner-tickets-list').innerHTML =
+            docs.map(t => renderTicketCard(t.id, t, 'owner')).join('') || '<p>لا توجد شكاوى.</p>';
+          return;
+        }
+
+        const unassigned = docs.filter(t => t.status === 'unassigned');
+        const otherAdmin = docs.filter(t => t.status === 'claimed' && t.claimedByUid !== currentUser.uid);
+        const resolved = docs.filter(t => t.status === 'resolved');
+
+        document.getElementById('tickets-unassigned').innerHTML =
+          unassigned.map(t => renderTicketCard(t.id, t, 'unassigned')).join('') || '<p style="color: var(--text-muted);">لا توجد شكاوى جديدة.</p>';
+
+        document.getElementById('tickets-other-admin').innerHTML =
+          otherAdmin.map(t => renderTicketCard(t.id, t, 'other')).join('') || '<p style="color: var(--text-muted);">لا توجد شكاوى مستلمة من إداري آخر حالياً.</p>';
+
+        document.getElementById('tickets-resolved').innerHTML =
+          resolved.map(t => renderTicketCard(t.id, t, 'resolved')).join('') || '<p style="color: var(--text-muted);">لا توجد شكاوى محلولة بعد.</p>';
+      });
+    }
+
+    onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
+      }
+      currentUser = user;
+
+      // استماع لحظي لصلاحية المستخدم: لو المالك شال صلاحية الأدمن بتختفي فوراً
+      onSnapshot(doc(db, "users", user.uid), (snap) => {
+        const data = snap.data() || {};
+        if (user.email === OWNER_EMAIL || data.role === 'owner') {
+          ownerPanel.classList.remove('hidden');
+          adminPanel.classList.add('hidden');
+          panelTitle.textContent = ' لوحة تحكم المالك';
+          loadUsersForOwner();
+          loadTickets(true);
+        } else if (data.role === 'admin') {
+          adminPanel.classList.remove('hidden');
+          ownerPanel.classList.add('hidden');
+          panelTitle.textContent = ' لوحة تحكم الأدمن (الشكاوى)';
+          loadTickets(false);
+        } else {
+          // لو سحب منه الصلاحية أو ليس له صلاحية، يخرج للرئيسية فوراً
+          window.location.href = 'home.html';
+        }
+      });
+    });
+  </script>
+</body>
+</html>

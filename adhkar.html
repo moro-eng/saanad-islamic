@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>الأذكار والأدعية | موسوعتك الدينية</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .dhikr-card {
+      padding: 1.5rem;
+      margin-bottom: 1.2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+    }
+    .dhikr-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.8rem;
+    }
+    .dhikr-badge {
+      background: rgba(16, 185, 129, 0.22);
+      border: 1px solid var(--accent-emerald);
+      color: #6ee7b7;
+      padding: 0.25rem 0.8rem;
+      border-radius: 999px;
+      font-size: 0.88rem;
+      font-weight: 700;
+    }
+    .dhikr-text {
+      font-size: 1.35rem;
+      font-weight: 700;
+      line-height: 2;
+      color: #ffffff;
+    }
+    .dhikr-meta {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+  <header class="liquid-glass top-navbar">
+    <div class="brand-title" data-speak="قسم الأذكار والأدعية">📿 الأذكار والأدعية</div>
+    <a href="home.html" class="btn-glass" data-speak="العودة إلى الصفحة الرئيسية"> الرئيسية</a>
+  </header>
+
+  <main class="container">
+    <section class="liquid-glass" style="padding: 1.8rem; margin-bottom: 1.8rem; text-align: center;" tabindex="0"
+             data-speak="أذكار وأدعية يومية ناطقة. اضغط على زر استماع بجانب أي ذكر لسماعه بصوت عربي واضح">
+      <h1 style="color: var(--accent-gold); font-size: 1.9rem;">الأذكار والأدعية اليومية</h1>
+      <p style="color: var(--text-muted);">اذكر الله في كل وقت، واضغط على زر «استماع» بجانب أي ذكر لنطقه بالكامل</p>
+    </section>
+
+    <div id="adhkar-list"></div>
+  </main>
+
+  <script src="js/voice-engine.js"></script>
+  <script type="module">
+    import { auth, db } from "./js/firebase-config.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const DEFAULT_ADHKAR = [
+      {
+        category: "أذكار الصباح والمساء",
+        title: "التسبيح والتحميد والتكبير",
+        content: "سبحان الله وبحمده، عدد خلقه، ورضا نفسه، وزنة عرشه، ومداد كلماته.",
+        count: "ثلاث مرات"
+      },
+      {
+        category: "أذكار الصباح",
+        title: "دعاء طلب العلم والرزق والعمل",
+        content: "اللهم إني أسألك علماً نافعاً، ورزقاً طيباً، وعملاً متقبلاً.",
+        count: "مرة واحدة عند الصباح"
+      },
+      {
+        category: "أدعية جامعة",
+        title: "دعاء الهداية والثبات",
+        content: "اللهم إني أسألك الهدى والتقى والعفاف والغنى، واجعلني من عبادك الصالحين.",
+        count: "مستحب في كل وقت"
+      },
+      {
+        category: "أذكار بعد الصلاة",
+        title: "الاستغفار والسلام",
+        content: "أستغفر الله العظيم الذي لا إله إلا هو الحي القيوم وأتوب إليه. اللهم أنت السلام ومنك السلام تباركت يا ذا الجلال والإكرام.",
+        count: "عقب الصلوات المكتوبة"
+      }
+    ];
+
+    const listContainer = document.getElementById('adhkar-list');
+
+    function renderAdhkar(items) {
+      listContainer.innerHTML = '';
+      items.forEach((item, idx) => {
+        const card = document.createElement('article');
+        card.className = 'liquid-glass dhikr-card';
+        card.setAttribute('tabindex', '0');
+        card.setAttribute('data-speak', `${item.title}. ${item.content}`);
+
+        const listenBtn = document.createElement('button');
+        listenBtn.className = 'btn-glass';
+        listenBtn.setAttribute('data-speak', `استماع إلى ${item.title}`);
+        listenBtn.innerHTML = '🔊 استماع';
+        listenBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          window.voiceEngine.speak(`${item.title}. ${item.content}`);
+        });
+
+        card.innerHTML = `
+          <div class="dhikr-header">
+            <div>
+              <span class="dhikr-badge">${item.category || 'ذكر ودعاء'}</span>
+              <h2 style="font-size: 1.25rem; color: var(--accent-gold); margin-top: 0.4rem;">${item.title}</h2>
+            </div>
+          </div>
+          <p class="dhikr-text">${item.content}</p>
+          <p class="dhikr-meta">التكرار / الإرشاد: ${item.count || 'حسب التيسير'}</p>
+        `;
+
+        card.querySelector('.dhikr-header').appendChild(listenBtn);
+        listContainer.appendChild(card);
+      });
+
+      window.voiceEngine.bindAutoReadElements();
+    }
+
+    onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      window.voiceEngine.speak('أهلاً بك في قسم الأذكار والأدعية.');
+
+      const q = query(collection(db, "adhkar"), orderBy("createdAt", "desc"));
+      onSnapshot(q, (snapshot) => {
+        const dbItems = snapshot.docs.map(d => d.data());
+        renderAdhkar([...dbItems, ...DEFAULT_ADHKAR]);
+      }, () => {
+        renderAdhkar(DEFAULT_ADHKAR);
+      });
+    });
+  </script>
+</body>
+</html>

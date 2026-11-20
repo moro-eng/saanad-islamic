@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>بوصلة القبلة | موسوعتك الدينية</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .compass-wrapper {
+      width: 270px;
+      height: 270px;
+      margin: 2rem auto;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,255,255,0.12), rgba(0,0,0,0.55));
+      border: 3px solid var(--accent-gold);
+      box-shadow: 0 0 35px rgba(234, 179, 8, 0.25);
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.15s ease-out;
+    }
+    .qibla-pointer {
+      width: 6px;
+      height: 115px;
+      background: linear-gradient(to top, transparent, var(--accent-emerald));
+      position: absolute;
+      top: 18px;
+      transform-origin: bottom center;
+      border-radius: 6px;
+    }
+    .kaaba-badge {
+      position: absolute;
+      top: -16px;
+      background: var(--accent-gold);
+      color: #000;
+      font-weight: 900;
+      padding: 0.2rem 0.65rem;
+      border-radius: 10px;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+  <header class="liquid-glass top-navbar">
+    <div class="brand-title" data-speak="بوصلة اتجاه القبلة">🧭 بوصلة القبلة</div>
+    <a href="home.html" class="btn-glass" data-speak="العودة إلى الصفحة الرئيسية">🏠 الرئيسية</a>
+  </header>
+
+  <main class="container" style="text-align: center;">
+    <section class="liquid-glass" style="padding: 2rem; max-width: 620px; margin: 0 auto;" tabindex="0" id="qibla-info">
+      <h1 style="color: var(--accent-gold); font-size: 1.9rem;">اتجاه القبلة الحقيقي</h1>
+      <p id="qibla-status" style="color: var(--text-muted); margin-top: 0.5rem;">جاري تحديد موقعك الجغرافي لحساب زاوية القبلة...</p>
+
+      <button id="enable-sensor-btn" class="btn-glass" style="margin-top: 1rem;"
+              data-speak="تفعيل حساسات البوصلة على الهاتف">
+        📡 تفعيل حساسات البوصلة
+      </button>
+
+      <div id="compass-dial" class="compass-wrapper">
+        <div class="kaaba-badge">🕋 القبلة</div>
+        <div class="qibla-pointer"></div>
+        <div style="font-size: 1.5rem; font-weight: 900;" id="qibla-deg">--°</div>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/voice-engine.js"></script>
+  <script type="module">
+    import { auth } from "./js/firebase-config.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    const KAABA_LAT = 21.422487;
+    const KAABA_LNG = 39.826206;
+    let qiblaBearing = 0;
+
+    function calculateQibla(lat, lng) {
+      const toRad = d => (d * Math.PI) / 180;
+      const toDeg = r => (r * 180) / Math.PI;
+      const phi1 = toRad(lat);
+      const phi2 = toRad(KAABA_LAT);
+      const deltaLambda = toRad(KAABA_LNG - lng);
+
+      const y = Math.sin(deltaLambda) * Math.cos(phi2);
+      const x =
+        Math.cos(phi1) * Math.sin(phi2) -
+        Math.sin(phi1) * Math.cos(phi2) * Math.cos(deltaLambda);
+
+      return (toDeg(Math.atan2(y, x)) + 360) % 360;
+    }
+
+    function handleOrientation(event) {
+      let heading = 0;
+      if (typeof event.webkitCompassHeading === 'number') {
+        heading = event.webkitCompassHeading;
+      } else if (typeof event.alpha === 'number') {
+        heading = 360 - event.alpha;
+      }
+      const rotation = (qiblaBearing - heading + 360) % 360;
+      document.getElementById('compass-dial').style.transform = `rotate(${rotation}deg)`;
+    }
+
+    document.getElementById('enable-sensor-btn').addEventListener('click', async () => {
+      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        const permission = await DeviceOrientationEvent.requestPermission();
+        if (permission === 'granted') {
+          window.addEventListener('deviceorientation', handleOrientation, true);
+          window.voiceEngine.speak('تم تفعيل حساس البوصلة بنجاح');
+        }
+      } else {
+        window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+        window.addEventListener('deviceorientation', handleOrientation, true);
+        window.voiceEngine.speak('حساس البوصلة نشط الآن');
+      }
+    });
+
+    onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      if (!navigator.geolocation) {
+        document.getElementById('qibla-status').textContent = 'المتصفح لا يدعم تحديد الموقع الجغرافي.';
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          qiblaBearing = calculateQibla(latitude, longitude);
+          const degRounded = Math.round(qiblaBearing);
+          document.getElementById('qibla-deg').textContent = `${degRounded}°`;
+          const msg = `اتجاه القبلة من موقعك الحالي هو بزاوية ${degRounded} درجة من الشمال`;
+          document.getElementById('qibla-status').textContent = msg;
+          document.getElementById('qibla-info').setAttribute('data-speak', msg);
+          window.voiceEngine.bindAutoReadElements();
+          window.voiceEngine.speak(`مرحباً بك في بوصلة القبلة. ${msg}`);
+        },
+        () => {
+          document.getElementById('qibla-status').textContent = 'يرجى السماح بالوصول إلى الموقع لتحديد اتجاه القبلة بدقة.';
+        }
+      );
+    });
+  </script>
+</body>
+</html>

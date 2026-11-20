@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>قسم الدعم والشكاوى | موسوعتك الدينية</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="liquid-glass top-navbar">
+    <div class="brand-title" data-speak="قسم الدعم وتقديم الشكاوى">🎧 الدعم والشكاوى</div>
+    <a href="home.html" class="btn-glass" data-speak="العودة إلى الصفحة الرئيسية"> الرئيسية</a>
+  </header>
+
+  <main class="container" style="max-width: 820px;">
+    <section class="liquid-glass" style="padding: 2rem; margin-bottom: 1.8rem;">
+      <h1 style="color: var(--accent-gold); font-size: 1.8rem;">تقديم شكوى أو طلب مساعدة</h1>
+      <p style="color: var(--text-muted); margin-top: 0.4rem;">
+        يمكنك إرسال شكواك كتابةً أو عبر تسجيل صوتي مباشر، وسيتواصل معك فريق الدعم
+      </p>
+
+      <!-- 1. شكوى كتابية -->
+      <div style="margin-top: 1.5rem;">
+        <h2 style="font-size: 1.25rem; color: var(--accent-emerald); margin-bottom: 0.5rem;">✍️ شكوى كتابية</h2>
+        <textarea id="text-complaint" rows="4"
+                  style="width: 100%; padding: 1rem; border-radius: 14px; border: 1px solid var(--glass-border); background: rgba(0,0,0,0.25); color: #fff; font-size: 1rem;"
+                  placeholder="اكتب تفاصيل الشكوى أو الاستفسار هنا..."></textarea>
+        <button id="send-text-btn" class="btn-glass" style="margin-top: 0.8rem;" data-speak="إرسال الشكوى الكتابية">
+          📨 إرسال الشكوى الكتابية
+        </button>
+      </div>
+
+      <hr style="border-color: var(--glass-border); margin: 2rem 0;" />
+
+      <!-- 2. شكوى صوتية (فويس) -->
+      <div>
+        <h2 style="font-size: 1.25rem; color: var(--accent-gold); margin-bottom: 0.5rem;">🎙️ شكوى صوتية (فويس)</h2>
+        <div style="display: flex; gap: 0.8rem; flex-wrap: wrap;">
+          <button id="record-btn" class="btn-glass" data-speak="بدء تسجيل شكوى صوتية">🔴 بدء التسجيل</button>
+          <button id="stop-record-btn" class="btn-glass" disabled data-speak="إيقاف التسجيل الصوتي">⏹️ إيقاف التسجيل</button>
+          <button id="send-voice-btn" class="btn-glass" disabled data-speak="إرسال الشكوى الصوتية"> إرسال الفويس</button>
+        </div>
+        <audio id="voice-preview" controls class="hidden" style="width: 100%; margin-top: 1rem;"></audio>
+      </div>
+
+      <p id="support-msg" style="margin-top: 1.2rem; font-weight: 700; color: var(--accent-emerald);" aria-live="polite"></p>
+    </section>
+
+    <!-- متابعة الشكاوى السابقة للمستخدم -->
+    <section class="liquid-glass" style="padding: 1.8rem;">
+      <h2 style="color: var(--accent-gold); font-size: 1.4rem; margin-bottom: 1rem;">شكاواي وردود الإدارة</h2>
+      <div id="my-tickets-list"></div>
+    </section>
+  </main>
+
+  <script src="js/voice-engine.js"></script>
+  <script type="module">
+    import { auth, db } from "./js/firebase-config.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { collection, addDoc, query, where, onSnapshot, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    let currentUser = null;
+    let userDisability = localStorage.getItem('user_disability_type') || 'غير محدد';
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let audioBase64 = null;
+
+    const statusEl = document.getElementById('support-msg');
+    const recordBtn = document.getElementById('record-btn');
+    const stopRecBtn = document.getElementById('stop-record-btn');
+    const sendVoiceBtn = document.getElementById('send-voice-btn');
+    const previewAudio = document.getElementById('voice-preview');
+
+    function notify(msg) {
+      statusEl.textContent = msg;
+      window.voiceEngine.speak(msg);
+    }
+
+    // إرسال شكوى كتابية
+    document.getElementById('send-text-btn').addEventListener('click', async () => {
+      const text = document.getElementById('text-complaint').value.trim();
+      if (!text || !currentUser) return notify('من فضلك اكتب نص الشكوى أولاً.');
+
+      await addDoc(collection(db, "tickets"), {
+        userId: currentUser.uid,
+        userName: currentUser.displayName,
+        userEmail: currentUser.email,
+        disabilityType: userDisability,
+        submissionType: "text",
+        textContent: text,
+        audioDataUrl: null,
+        status: "unassigned",
+        claimedByUid: null,
+        claimedByName: null,
+        reply: "",
+        createdAt: new Date().toISOString()
+      });
+
+      document.getElementById('text-complaint').value = '';
+      notify('تم إرسال شكواك الكتابية بنجاح وسيتم الرد عليك قريباً.');
+    });
+
+    // تسجيل فويس صوتي
+    recordBtn.addEventListener('click', async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(audioChunks, { type: 'audio/webm' });
+          previewAudio.src = URL.createObjectURL(blob);
+          previewAudio.classList.remove('hidden');
+
+          const reader = new FileReader();
+          reader.readAsDataURL(blob);
+          reader.onloadend = () => {
+            audioBase64 = reader.result;
+            sendVoiceBtn.disabled = false;
+          };
+        };
+
+        mediaRecorder.start();
+        recordBtn.disabled = true;
+        stopRecBtn.disabled = false;
+        notify('جاري تسجيل الشكوى الصوتية الآن...');
+      } catch {
+        notify('تعذر الوصول إلى الميكروفون. يرجى السماح بالصلاحية.');
+      }
+    });
+
+    stopRecBtn.addEventListener('click', () => {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+        recordBtn.disabled = false;
+        stopRecBtn.disabled = true;
+        notify('تم إيقاف التسجيل. يمكنك الاستماع له ثم إرساله.');
+      }
+    });
+
+    sendVoiceBtn.addEventListener('click', async () => {
+      if (!audioBase64 || !currentUser) return;
+
+      await addDoc(collection(db, "tickets"), {
+        userId: currentUser.uid,
+        userName: currentUser.displayName,
+        userEmail: currentUser.email,
+        disabilityType: userDisability,
+        submissionType: "voice",
+        textContent: "شكوى مرسلة عبر تسجيل صوتي",
+        audioDataUrl: audioBase64,
+        status: "unassigned",
+        claimedByUid: null,
+        claimedByName: null,
+        reply: "",
+        createdAt: new Date().toISOString()
+      });
+
+      audioBase64 = null;
+      sendVoiceBtn.disabled = true;
+      previewAudio.classList.add('hidden');
+      notify('تم إرسال شكواك الصوتية بنجاح.');
+    });
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
+      }
+      currentUser = user;
+      const snap = await getDoc(doc(db, "users", user.uid));
+      if (snap.exists() && snap.data().disabilityType) {
+        userDisability = snap.data().disabilityType;
+      }
+
+      window.voiceEngine.bindAutoReadElements();
+      window.voiceEngine.speak('مرحباً بك في قسم الدعم. يمكنك إرسال شكوى كتابية أو تسجيل فويس صوتي.');
+
+      const q = query(collection(db, "tickets"), where("userId", "==", user.uid));
+      onSnapshot(q, (snapshot) => {
+        const list = document.getElementById('my-tickets-list');
+        if (snapshot.empty) {
+          list.innerHTML = '<p style="color: var(--text-muted);">لا توجد شكاوى سابقة.</p>';
+          return;
+        }
+        list.innerHTML = snapshot.docs.map(d => {
+          const t = d.data();
+          return `
+            <div class="liquid-glass" style="padding: 1rem; margin-bottom: 0.9rem;">
+              <p><strong>النوع:</strong> ${t.submissionType === 'voice' ? 'تسجيل صوتي' : 'كتابي'} | <strong>الحالة:</strong> ${t.status}</p>
+              <p style="margin-top: 0.4rem;">${t.textContent}</p>
+              ${t.audioDataUrl ? `<audio controls src="${t.audioDataUrl}" style="width: 100%; margin-top: 0.5rem;"></audio>` : ''}
+              <p style="margin-top: 0.5rem; color: var(--accent-gold);"><strong>رد الإدارة:</strong> ${t.reply || 'قيد المراجعة'}</p>
+            </div>
+          `;
+        }).join('');
+      });
+    });
+  </script>
+</body>
+</html>

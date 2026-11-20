@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>تسجيل الدخول | الموسوعة الدينية لذوي الهمم</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <main class="container" style="min-height: 100vh; display: flex; align-items: center; justify-content: center;">
+    
+    <!-- بطاقة تسجيل الدخول بـ Google فقط -->
+    <section id="login-card" class="liquid-glass" style="max-width: 520px; width: 100%; padding: 2.5rem; text-align: center;">
+      <h1 style="color: var(--accent-gold); font-size: 2rem; margin-bottom: 0.8rem;">الموسوعة الدينية الميسّرة</h1>
+      <p style="color: var(--text-muted); margin-bottom: 2rem;">
+        منصة ناطقة ومتكاملة لخدمة إخواننا من ذوي الإعاقة السمعية والبصرية
+      </p>
+
+      <button id="google-login-btn" class="btn-glass" style="width: 100%; padding: 1.1rem; font-size: 1.15rem;"
+              data-speak="تسجيل الدخول السريع باستخدام حساب جوجل">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" width="24" height="24" />
+        تسجيل الدخول بحساب Google
+      </button>
+    </section>
+
+    <!-- البطاقة الكبيرة فور تسجيل الدخول: تحديد حالة المستخدم -->
+    <section id="disability-choice-card" class="liquid-glass hidden" style="max-width: 780px; width: 100%; padding: 2.5rem; text-align: center;">
+      <h2 style="color: var(--accent-gold); font-size: 1.9rem;">مرحباً بك! من فضلك حدد حالتك لنخصص تجربتك</h2>
+      <p style="color: var(--text-muted); margin-top: 0.5rem;">سيتم تفعيل المساعد الصوتي أو البصري تلقائياً بناءً على اختيارك</p>
+
+      <div class="choice-grid">
+        <!-- زر الإعاقة السمعية -->
+        <button id="choose-deaf" class="liquid-glass disability-card"
+                data-speak="الاختيار الأول: ذوي الإعاقة السمعية، واجهة بصرية واضحة ونصوص كاملة">
+          <img src="https://cdn-icons-png.flaticon.com/512/3022/3022337.png" alt="أيقونة دعم الإعاقة السمعية" />
+          <h3 style="font-size: 1.35rem; color: #fff;">ذوي الإعاقة السمعية</h3>
+          <p style="color: var(--text-muted); font-size: 0.95rem; margin-top: 0.4rem;">
+            تجربة بصرية متكاملة، قراءة فورية، ودعم كتابي مباشر
+          </p>
+        </button>
+
+        <!-- زر الإعاقة البصرية -->
+        <button id="choose-blind" class="liquid-glass disability-card"
+                data-speak="الاختيار الثاني: ذوي الإعاقة البصرية، تفعيل القارئ الصوتي الذكي لكل أجزاء الموقع">
+          <img src="https://cdn-icons-png.flaticon.com/512/2821/2821802.png" alt="أيقونة دعم الإعاقة البصرية" />
+          <h3 style="font-size: 1.35rem; color: #fff;">ذوي الإعاقة البصرية</h3>
+          <p style="color: var(--text-muted); font-size: 0.95rem; margin-top: 0.4rem;">
+            قراءة صوتية عربية تلقائية لكل عنصر، وإرسال شكاوى صوتية
+          </p>
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="js/voice-engine.js"></script>
+  <script type="module">
+    import { auth, googleProvider, db } from "./js/firebase-config.js";
+    import { signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const loginCard = document.getElementById('login-card');
+    const choiceCard = document.getElementById('disability-choice-card');
+    let currentUser = null;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      window.voiceEngine.bindAutoReadElements();
+      window.voiceEngine.speak('أهلاً بك. اضغط على زر تسجيل الدخول بحساب جوجل للمتابعة.');
+    });
+
+    document.getElementById('google-login-btn').addEventListener('click', async () => {
+      try {
+        const result = await signInWithPopup(auth, googleProvider);
+        currentUser = result.user;
+        await handlePostLogin(currentUser);
+      } catch (err) {
+        alert('حدث خطأ أثناء تسجيل الدخول: ' + err.message);
+      }
+    });
+
+    async function handlePostLogin(user) {
+      const userRef = doc(db, "users", user.uid);
+      const snap = await getDoc(userRef);
+
+      if (!snap.exists()) {
+        await setDoc(userRef, {
+          name: user.displayName,
+          email: user.email,
+          photoURL: user.photoURL,
+          role: "user",
+          createdAt: new Date().toISOString()
+        });
+      }
+
+      // إظهار بطاقة اختيار الحالة فور تسجيل الدخول
+      loginCard.classList.add('hidden');
+      choiceCard.classList.remove('hidden');
+      window.voiceEngine.speak('تم تسجيل الدخول بنجاح. من فضلك اختر حالتك: الإعاقة السمعية أم الإعاقة البصرية.');
+    }
+
+    async function saveChoiceAndEnter(type) {
+      if (!currentUser) return;
+      await setDoc(doc(db, "users", currentUser.uid), { disabilityType: type }, { merge: true });
+      localStorage.setItem('user_disability_type', type);
+      window.location.href = 'home.html';
+    }
+
+    document.getElementById('choose-deaf').addEventListener('click', () => saveChoiceAndEnter('deaf'));
+    document.getElementById('choose-blind').addEventListener('click', () => saveChoiceAndEnter('blind'));
+  </script>
+</body>
+</html>
